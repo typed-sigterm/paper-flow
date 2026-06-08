@@ -5,9 +5,11 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "portless",
-    "dev:host": "nuxt dev",
+    "dev:port": "nuxt dev",
+    "lint": "eslint .",
     "postinstall": "nuxt prepare",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck"
   },
   "dependencies": {
     "docx": "^9.7.1",
@@ -31,6 +33,6 @@
   },
   "portless": {
     "name": "paper-flow",
-    "script": "dev:host"
+    "script": "dev:port"
   }
 }

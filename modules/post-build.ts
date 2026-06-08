@@ -21,6 +21,9 @@ function transformManifest(original: Record<string, unknown>) {
       node: '24',
       bun: '1.3.14',
     },
+    publishConfig: {
+      provenance: true,
+    },
   };
 }
 

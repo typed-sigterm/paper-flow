@@ -81,7 +81,7 @@ function figureSrc(figIdx: number) {
       <div style="margin: 8px 0;">
         <strong>答案：</strong>
         <span v-for="(ans, ansIdx) in item.Answer" :key="ansIdx">
-          {{ ans.Text }}{{ ansIdx < item.Answer.length - 1 ? ' ' : '' }}
+          {{ ans.Text }}{{ ansIdx as number < item.Answer.length - 1 ? ' ' : '' }}
         </span>
       </div>
     </template>
@@ -97,8 +97,8 @@ function figureSrc(figIdx: number) {
             style="position: relative; display: inline-block;"
           >
             <img
-              :src="figureSrc(figIdx)"
-              :alt="`插图 ${figIdx + 1}`"
+              :src="figureSrc(figIdx as number)"
+              :alt="`插图 ${figIdx as number + 1}`"
               :style="{
                 maxWidth: '300px',
                 maxHeight: '200px',
@@ -108,7 +108,7 @@ function figureSrc(figIdx: number) {
                 opacity: enhancingFigures[`${path}-${figIdx}`] ? 0.5 : 1,
               }"
               :title="enhancedFigures[`${path}-${figIdx}`] ? '已增强（点击重新增强）' : '点击去水印+重绘增强'"
-              @click="handleEnhanceFigure(figIdx)"
+              @click="handleEnhanceFigure(figIdx as number)"
             >
             <span
               v-if="enhancingFigures[`${path}-${figIdx}`]"

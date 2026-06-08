@@ -246,7 +246,7 @@ async function handleExportDocx() {
           :key="qiIdx"
           style="margin-bottom: 16px;"
         >
-          <h4>题目区域 {{ qiIdx + 1 }}（{{ qi.Width }}×{{ qi.Height }}）</h4>
+          <h4>题目区域 {{ qiIdx as number + 1 }}（{{ qi.Width }}×{{ qi.Height }}）</h4>
           <QuestionBlock
             v-for="(q, qIdx) in qi.ResultList"
             :key="qIdx"

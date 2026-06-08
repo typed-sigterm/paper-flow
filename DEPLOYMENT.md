@@ -65,6 +65,6 @@ cd $env:USERPROFILE/.paper-flow
 paper-flow-cli
 ```
 
-PaperFlow 会在终端启动，访问输出中的 URL 即可开始使用。
+PaperFlow 会在终端启动，访问 `http://localhost:3000` 即可开始使用。可以设置[一些环境变量](https://v2.nitro.build/deploy/runtimes/node#environment-variables)调整默认行为。
 
 停止 PaperFlow 运行只需关闭终端。

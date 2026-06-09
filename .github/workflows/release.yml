@@ -19,4 +19,5 @@ jobs:
 
       - run: bun ci
       - run: bun run build
-      - run: bunx npm publish
+      - run: bunx npm@latest publish
+        working-directory: .output

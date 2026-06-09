@@ -1,5 +1,3 @@
-import type { Chat } from 'openai/resources';
-
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-02',
 
@@ -20,12 +18,12 @@ export default defineNuxtConfig({
     nitro: {
       envPrefix: 'PF_',
     },
+    dataDir: '.data',
     qcloudSecretId: '',
     qcloudSecretKey: '',
     qcloudTokenhubBaseUrl: 'https://tokenhub.tencentmaas.com/v1',
     qcloudTokenhubApiKey: '',
     fixTextModel: 'deepseek-v4-flash',
-    fixTextReasoningEffort: 'low' satisfies Exclude<Chat.ChatCompletionReasoningEffort, null>,
     redrawFigureModel: 'hy-image-lite',
   },
 
@@ -44,5 +42,10 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'node-server',
+    esbuild: {
+      options: {
+        target: 'es2024',
+      },
+    },
   },
 });

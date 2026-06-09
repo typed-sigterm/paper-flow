@@ -19,7 +19,6 @@ function transformManifest(original: Record<string, unknown>) {
     },
     engines: {
       node: '24',
-      bun: '1.3.14',
     },
     publishConfig: {
       provenance: true,
@@ -27,7 +26,7 @@ function transformManifest(original: Record<string, unknown>) {
   };
 }
 
-const copiedFiles = ['LICENSE', 'README.md'];
+const copiedFiles = ['LICENSE', 'README.md', 'migrations'];
 const npmignore = ['node_modules'];
 
 export default defineNuxtModule({
@@ -46,7 +45,7 @@ export default defineNuxtModule({
       await Promise.all(copiedFiles.map((f) => {
         const src = join(import.meta.dirname, '../', f);
         const dest = join(import.meta.dirname, '../.output/', f);
-        return cp(src, dest);
+        return cp(src, dest, { recursive: true });
       }));
 
       await writeFile(join(import.meta.dirname, '../.output/.npmignore'), npmignore.join('\n'));

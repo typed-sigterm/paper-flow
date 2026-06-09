@@ -1,6 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { ocrResultToParts } from '../utils/ocr-convert';
-import { ocr } from '../utils/qcloud';
+import { storeBlob } from '#server/utils/blobs';
 
 export default defineEventHandler(async (event) => {
   checkRateLimit(event);
@@ -12,10 +11,8 @@ export default defineEventHandler(async (event) => {
   }
   validateFileSize(file.data.length);
 
-  const ocrResult = await ocr.QuestionSplitOCR({
-    ImageBase64: Buffer.from(file.data).toString('base64'),
-    UseNewModel: false,
-  });
+  const mimeType = file.type || 'image/png';
+  const blobId = await storeBlob(Buffer.from(file.data), mimeType);
 
-  return { parts: ocrResultToParts(ocrResult) };
+  return { blobId };
 });

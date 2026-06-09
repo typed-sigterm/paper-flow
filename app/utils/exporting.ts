@@ -1,25 +1,7 @@
 import type { ImageRun, Paragraph, TextRun } from 'docx';
+import type { DocumentContent, DocumentPart } from '#shared/utils/models';
 import katex from 'katex';
 import { createMarkdownExit } from 'markdown-exit';
-
-interface Coord {
-  LeftTop: { X: number, Y: number }
-  RightBottom: { X: number, Y: number }
-}
-
-interface OcrItem {
-  Question?: { Text?: string, ResultList?: OcrItem[], Index?: number }[]
-  Option?: { Text?: string }[]
-  Answer?: { Text?: string }[]
-  Figure?: { Coord?: Coord }[]
-}
-
-interface PageResult {
-  imageDataUrl: string
-  result: {
-    QuestionInfo?: { Width?: number, Height?: number, ResultList?: OcrItem[] }[]
-  }
-}
 
 // ====== Constants ======
 const FONT_SIZE_PT = 10.5;
@@ -61,50 +43,6 @@ async function splitTextByLang(text: string, bold: boolean, italic: boolean): Pr
   }
 
   return runs;
-}
-
-// ====== Utilities ======
-function dataUrlToUint8Array(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(',')[1]!;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-export function cropFigure(imageDataUrl: string, coord: Coord): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const { X: x, Y: y } = coord.LeftTop;
-      const w = coord.RightBottom.X - x;
-      const h = coord.RightBottom.Y - y;
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d')!.drawImage(img, x, y, w, h, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.src = imageDataUrl;
-  });
-}
-
-async function collectFigures(
-  item: OcrItem,
-  imageDataUrl: string,
-  path: string,
-  figures: Map<string, string>,
-): Promise<void> {
-  for (const [i, fig] of (item.Figure ?? []).entries()) {
-    if (fig.Coord && !figures.has(`${path}-${i}`)) {
-      figures.set(`${path}-${i}`, await cropFigure(imageDataUrl, fig.Coord));
-    }
-  }
-  for (const ques of item.Question ?? []) {
-    for (const [i, child] of (ques.ResultList ?? []).entries()) {
-      await collectFigures(child, imageDataUrl, `${path}-q${i}`, figures);
-    }
-  }
 }
 
 // ====== KaTeX → PNG ======
@@ -365,105 +303,60 @@ async function textToParagraphs(
   return result;
 }
 
-// ====== Paragraph generation from OCR items ======
-async function itemToParagraphs(
-  item: OcrItem,
-  path: string,
-  figures: Map<string, string>,
-  imgW: number,
-  usableW: number,
+// ====== Paragraph generation from DocumentPart ======
+
+async function partToParagraphs(
+  part: DocumentPart,
   depth: number,
 ): Promise<Paragraph[]> {
-  const { AlignmentType, ImageRun, Paragraph } = await import('docx');
   const result: Paragraph[] = [];
   const indent = depth > 0 ? { left: depth * 480 } : undefined;
 
-  for (const [qIdx, ques] of (item.Question ?? []).entries()) {
-    // 题目编号：1. 2. 3.
-    const qNum = `${qIdx + 1}. `;
-    result.push(...await textToParagraphs(qNum + (ques.Text ?? ''), { indent }));
-
-    for (const [i, child] of (ques.ResultList ?? []).entries()) {
-      result.push(...await itemToParagraphs(child, `${path}-q${i}`, figures, imgW, usableW, depth + 1));
-    }
+  // Headline
+  if (part.headline.trim()) {
+    result.push(...await textToParagraphs(part.headline, { indent }));
   }
 
-  for (const opt of (item.Option ?? [])) {
-    if (opt.Text) {
-      const paragraphs = await textToParagraphs(opt.Text, {
-        singleParagraph: true,
-      });
-      result.push(...paragraphs);
-    }
+  // Children (sub-questions)
+  for (const child of part.children) {
+    result.push(...await partToParagraphs(child, depth + 1));
   }
 
-  for (const [i, fig] of (item.Figure ?? []).entries()) {
-    if (!fig.Coord)
-      continue;
-    const key = `${path}-${i}`;
-    const dataUrl = figures.get(key);
-    if (!dataUrl)
-      continue;
-
-    const figW = fig.Coord.RightBottom.X - fig.Coord.LeftTop.X;
-    const figH = fig.Coord.RightBottom.Y - fig.Coord.LeftTop.Y;
-    let w = Math.round(usableW * (figW / imgW));
-    if (w > usableW)
-      w = usableW;
-    const h = Math.round(w * (figH / figW));
-
-    result.push(new Paragraph({
-      children: [new ImageRun({ data: dataUrlToUint8Array(dataUrl), transformation: { width: w, height: h }, type: 'png' })],
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: 120 },
-      indent,
-    }));
+  // Options
+  for (const opt of part.options) {
+    if (opt.headline.trim()) {
+      result.push(...await textToParagraphs(opt.headline, { singleParagraph: true }));
+    }
   }
 
   return result;
 }
 
 // ====== Export to DOCX ======
-export async function exportDocx(pages: PageResult[]) {
+export async function exportDocx(content: DocumentContent) {
   const { AlignmentType, Document, Paragraph, Packer, TextRun } = await import('docx');
-  if (!pages.length)
+  if (!content.parts.length)
     return;
 
   const PAGE_WIDTH = 12240;
   const MARGIN = 1440;
-  const USABLE_W = Math.round((PAGE_WIDTH - MARGIN * 2) * 96 / 1440);
 
   const children: Paragraph[] = [];
   children.push(new Paragraph({
     children: [new TextRun({
       text: '试卷切题 OCR 结果',
       font: { name: FONT_EN, eastAsia: FONT_CN },
-      size: 40, // 20pt in half-points
+      size: 40,
       bold: true,
     })],
     alignment: AlignmentType.CENTER,
     spacing: { after: 200 },
   }));
 
-  for (const [pi, page] of pages.entries()) {
-    const imgW = await new Promise<number>((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(img.naturalWidth);
-      img.src = page.imageDataUrl;
-    });
-
-    for (const [qi, qInfo] of (page.result?.QuestionInfo ?? []).entries()) {
-      const basePath = `p${pi}-${qi}`;
-      const figures = new Map<string, string>();
-
-      for (const [ii, item] of (qInfo.ResultList ?? []).entries()) {
-        await collectFigures(item, page.imageDataUrl, `${basePath}-${ii}`, figures);
-      }
-
-      for (const [ii, item] of (qInfo.ResultList ?? []).entries()) {
-        children.push(...await itemToParagraphs(item, `${basePath}-${ii}`, figures, imgW, USABLE_W, 0));
-        children.push(new Paragraph({ spacing: { before: 160, after: 160 } }));
-      }
+  for (const [i, part] of content.parts.entries()) {
+    children.push(...await partToParagraphs(part, 0));
+    if (i < content.parts.length - 1) {
+      children.push(new Paragraph({ spacing: { before: 160, after: 160 } }));
     }
   }
 

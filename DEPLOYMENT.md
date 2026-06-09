@@ -6,7 +6,7 @@
 
 ## 环境配置
 
-首先需要安装 Node.js v24，在 [npmmirror](https://registry.npmmirror.com/binary.html?path=node/latest-krypton/) 上找到符合您系统架构的安装包进行安装。
+首先需要安装 Node.js v24（不能是 Bun），在 [npmmirror](https://registry.npmmirror.com/binary.html?path=node/latest-krypton/) 上找到符合您系统架构的安装包进行安装。
 
 Node.js 安装完成后，重启系统，设置 npm registry 镜像：
 

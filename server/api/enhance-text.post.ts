@@ -1,4 +1,3 @@
-import type { Chat } from 'openai/resources';
 import pMap from 'p-map';
 import * as z from 'zod';
 
@@ -64,7 +63,8 @@ export default defineEventHandler(async (event) => {
         { role: 'user', content: t },
       ],
       temperature: 0.2,
-      reasoning_effort: config.fixTextReasoningEffort as Chat.ChatCompletionReasoningEffort,
+      // @ts-expect-error upstream
+      thinking: { type: 'disabled' },
     });
     return (res.choices?.[0]?.message?.content ?? '').trim() || t;
   }, { concurrency: CONCURRENCY });

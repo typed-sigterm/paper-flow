@@ -1,11 +1,10 @@
-import { dirname, resolve } from 'node:path';
+import { join } from 'node:path';
 import { migrate } from 'drizzle-orm/node-sqlite/migrator';
-import { file } from 'empathic/find';
 import { db } from '#server/utils/db';
+import { root } from '#server/utils/platform';
 
-export default defineNitroPlugin(async () => {
-  const root = dirname(file('package.json')!);
+export default defineNitroPlugin(() => {
   migrate(db, {
-    migrationsFolder: resolve(root, 'migrations'),
+    migrationsFolder: join(root, 'migrations'),
   });
 });

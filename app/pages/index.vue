@@ -1,6 +1,8 @@
 <!-- eslint-disable no-alert temporary -->
 
 <script setup lang="ts">
+import { unpdf } from '~/utils/unpdf';
+
 const router = useRouter();
 const fileInput = ref<HTMLInputElement | null>(null);
 const loading = ref(false);
@@ -28,7 +30,7 @@ async function handleSubmit() {
     const fd = new FormData();
 
     if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      const { getDocumentProxy, renderPageAsImage } = await import('~/utils/unpdf').then(m => m.unpdf());
+      const { getDocumentProxy, renderPageAsImage } = await unpdf();
       const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()));
       for (let i = 1; i <= pdf.numPages; i++) {
         const dataUrl = await renderPageAsImage(pdf, i, { toDataURL: true, scale: 2 }) as string;

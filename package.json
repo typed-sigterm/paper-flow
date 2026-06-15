@@ -13,6 +13,8 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.112",
+    "@nuxt/ui": "^4.8.2",
     "blake3-jit": "^1.1.0",
     "docx": "^9.7.1",
     "drizzle-orm": "1.0.0-rc.3",
@@ -22,9 +24,11 @@
     "nuxt": "^4.4.6",
     "openai": "^6.41.0",
     "p-map": "^7.0.4",
+    "tailwindcss": "^4.3.1",
     "tencentcloud-sdk-nodejs-ocr": "^4.1.233",
     "unpdf": "^1.6.2",
     "vue": "^3.5.34",
+    "vue-router": "^5.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -35,6 +39,7 @@
     "vue-tsc": "^3.3.3"
   },
   "overrides": {
+    "uuid": "npm:uuid@legacy-11",
     "vite": "npm:vite@^8.0.16"
   },
   "portless": {

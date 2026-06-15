@@ -88,7 +88,7 @@ const md = createMarkdownExit({
 })
   .use((md) => {
     // 内联数学：$...$
-    md.inline.ruler.after('escape', 'math_inline', (state: any, silent: boolean) => {
+    md.inline.ruler.after('escape', 'math_inline', (state, silent: boolean) => {
       if (state.src.charCodeAt(state.pos) !== CC.DOLLAR)
         return false;
       const start = state.pos + 1;
@@ -120,7 +120,7 @@ const md = createMarkdownExit({
     });
 
     // 块级数学：$$...$$
-    md.block.ruler.before('fence', 'math_block', (state: any, startLine: number, endLine: number, silent: boolean) => {
+    md.block.ruler.before('fence', 'math_block', (state, startLine: number, endLine: number, silent: boolean) => {
       const pos = state.bMarks[startLine]! + state.tShift[startLine]!;
       if (pos + 1 >= state.eMarks[startLine]!)
         return false;
@@ -148,7 +148,7 @@ const md = createMarkdownExit({
 
     // HTML 标签：<u>、<sub>、<sup>、<code>
     md.inline.ruler.disable('html_inline');
-    md.inline.ruler.after('math_inline', 'html_tags', (state: any, silent: boolean) => {
+    md.inline.ruler.after('math_inline', 'html_tags', (state, silent: boolean) => {
       if (state.src.charCodeAt(state.pos) !== CC.LT)
         return false;
 

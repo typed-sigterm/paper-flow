@@ -1,6 +1,8 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-02',
 
+  modules: ['@nuxt/ui'],
+
   ssr: false,
 
   app: {
@@ -11,6 +13,7 @@ export default defineNuxtConfig({
   },
 
   css: [
+    '~/app.css',
     'katex/dist/katex.min.css',
   ],
 
@@ -46,6 +49,21 @@ export default defineNuxtConfig({
       options: {
         target: 'es2024',
       },
+    },
+  },
+
+  fonts: {
+    provider: 'bunny',
+    providers: {
+      google: false,
+      googleicons: false,
+    },
+  },
+
+  icon: {
+    mode: 'svg',
+    clientBundle: {
+      scan: true,
     },
   },
 });

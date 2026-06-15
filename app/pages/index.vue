@@ -1,126 +1,118 @@
-<!-- eslint-disable no-alert temporary -->
-
 <script setup lang="ts">
-import { unpdf } from '~/utils/unpdf';
-
 const router = useRouter();
-const fileInput = ref<HTMLInputElement | null>(null);
-const loading = ref(false);
-const error = ref('');
-const documents = ref<any[]>([]);
+const documents = ref<{ id: string, title: string, status: string, createdAt: string }[]>([]);
 
 async function fetchDocuments() {
   try {
     const data = await $fetch('/api/documents');
     documents.value = data.documents || [];
-  } catch (e: any) {
+  } catch (e) {
     console.error('Failed to fetch documents:', e);
-  }
-}
-
-async function handleSubmit() {
-  const file = fileInput.value?.files?.[0];
-  if (!file)
-    return;
-
-  loading.value = true;
-  error.value = '';
-
-  try {
-    const fd = new FormData();
-
-    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      const { getDocumentProxy, renderPageAsImage } = await unpdf();
-      const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()));
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const dataUrl = await renderPageAsImage(pdf, i, { toDataURL: true, scale: 2 }) as string;
-        const blob = await (await fetch(dataUrl)).blob();
-        fd.append('files', new File([blob], `page-${i}.png`, { type: 'image/png' }));
-      }
-    } else {
-      fd.append('files', file);
-    }
-
-    const { documentId } = await $fetch<{ documentId: string }>('/api/documents', {
-      method: 'POST',
-      body: fd,
-    });
-    router.push(`/doc/${documentId}`);
-  } catch (e: any) {
-    error.value = e?.data?.message || e?.message || '上传失败';
-  } finally {
-    loading.value = false;
   }
 }
 
 async function handleDelete(id: string, event: MouseEvent) {
   event.stopPropagation();
-  if (!confirm('确定删除此文档？'))
-    return;
   try {
     await $fetch(`/api/documents/${id}`, { method: 'DELETE' });
     documents.value = documents.value.filter(d => d.id !== id);
-  } catch (e: any) {
-    alert(e?.data?.message || '删除失败');
+    showSuccessToast('已删除');
+  } catch (e) {
+    showErrorToast('删除失败', { error: e });
   }
+}
+
+function statusColor(status: string) {
+  if (status === 'done')
+    return 'success';
+  if (status === 'error')
+    return 'error';
+  return 'warning';
+}
+
+function statusLabel(status: string) {
+  if (status === 'done')
+    return '已完成';
+  if (status === 'error')
+    return '处理失败';
+  return '处理中';
 }
 
 onMounted(fetchDocuments);
 </script>
 
 <template>
-  <div style="max-width: 960px; margin: 0 auto; padding: 24px; font-family: sans-serif;">
-    <h1>PaperFlow</h1>
-    <p>试卷扫描件转 Word，但是专业版。</p>
-
-    <div style="margin: 24px 0; padding: 16px; border: 1px solid #ddd; border-radius: 4px;">
-      <h2>上传新文档</h2>
-      <form style="margin-top: 12px;" @submit.prevent="handleSubmit">
-        <input
-          ref="fileInput"
-          type="file"
-          accept="image/*,application/pdf"
-          required
-        >
-        <button type="submit" :disabled="loading" style="margin-left: 8px;">
-          {{ loading ? '上传中...' : '上传并处理' }}
-        </button>
-      </form>
-      <p v-if="error" style="color: red; margin-top: 8px;">
-        {{ error }}
-      </p>
+  <UContainer class="py-6 max-w-3xl">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-semibold text-highlighted">
+          PaperFlow
+        </h1>
+        <p class="text-sm text-muted mt-0.5">
+          试卷扫描件转 Word，但是专业版
+        </p>
+      </div>
+      <UButton
+        label="上传新文档"
+        icon="i-lucide-plus"
+        to="/new"
+      />
     </div>
 
-    <div style="margin-top: 32px;">
-      <h2>文档列表</h2>
-      <div v-if="documents.length === 0" style="color: #666; margin-top: 12px;">
-        暂无文档，请上传第一个文档。
+    <!-- Document List -->
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-medium text-muted">
+          文档列表
+        </h2>
+        <UButton
+          variant="ghost"
+          icon="i-lucide-refresh-cw"
+          label="刷新"
+          @click="fetchDocuments"
+        />
       </div>
-      <div v-else style="margin-top: 12px;">
-        <div
+
+      <UEmpty
+        v-if="documents.length === 0"
+        icon="i-lucide-file-text"
+        title="暂无文档"
+        description="上传你的第一个文档开始使用"
+      />
+
+      <div v-else class="flex flex-col gap-3">
+        <UCard
           v-for="doc in documents"
           :key="doc.id"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #eee; border-radius: 4px; margin-bottom: 8px; cursor: pointer;"
+          variant="subtle"
+          class="cursor-pointer hover:border-accented transition-colors"
           @click="router.push(`/doc/${doc.id}`)"
         >
-          <div>
-            <div style="font-weight: bold;">
-              {{ doc.title }}
+          <div class="flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-medium text-highlighted truncate">{{ doc.title }}</span>
+                <UBadge
+                  :color="statusColor(doc.status)"
+                  :label="statusLabel(doc.status)"
+                  variant="subtle"
+                />
+              </div>
+              <p class="text-sm text-muted">
+                创建于 {{ new Date(doc.createdAt).toLocaleString() }}
+              </p>
             </div>
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">
-              创建于 {{ new Date(doc.createdAt).toLocaleString() }}
-              <span v-if="doc.status === 'pending' || doc.status === 'processing'" style="color: #d97706; margin-left: 8px;">处理中…</span>
-              <span v-else-if="doc.status === 'error'" style="color: red; margin-left: 8px;">处理失败</span>
-            </div>
+
+            <UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              @click="handleDelete(doc.id, $event)"
+            />
           </div>
-          <button
-            style="padding: 4px 12px; color: #dc2626; background: none; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer;"
-            @click="handleDelete(doc.id, $event)"
-          >
-            删除
-          </button>
-        </div>
+        </UCard>
       </div>
     </div>
-  </div>
+  </UContainer>
 </template>

@@ -47,8 +47,8 @@ async function handleEnhanceFigure(figureIdx: number) {
   if (props.pageImage && !croppedFigures.value[key]) {
     try {
       croppedFigures.value[key] = await cropFigure(props.pageImage, fig.originalRect);
-    } catch (e: any) {
-      figureErrors.value[key] = e?.message || '裁剪失败';
+    } catch (e) {
+      figureErrors.value[key] = e instanceof Error ? e.message : '裁剪失败';
       return;
     }
   }
@@ -71,8 +71,8 @@ async function handleEnhanceFigure(figureIdx: number) {
       body: fd,
     });
     enhancedFigures.value[key] = `data:image/png;base64,${result.imageBase64}`;
-  } catch (e: any) {
-    figureErrors.value[key] = e?.data?.message || e?.message || '增强失败';
+  } catch (e) {
+    figureErrors.value[key] = (e instanceof Error ? e.message : typeof e === 'object' && e !== null && 'data' in e ? (e.data as { message?: string })?.message : undefined) || '增强失败';
   } finally {
     enhancingFigures.value[key] = false;
   }
@@ -102,23 +102,23 @@ if (props.pageImage) {
 </script>
 
 <template>
-  <div style="margin: 12px 0; padding: 12px; background: #f9f9f9; border-radius: 4px;">
+  <div class="rounded-lg bg-elevated p-4 border border-default">
     <!-- Headline -->
-    <div style="margin-bottom: 8px;">
-      <pre style="white-space: pre-wrap; margin: 4px 0;">{{ item.headline }}</pre>
+    <div class="mb-3">
+      <pre class="whitespace-pre-wrap text-default font-medium m-0">{{ item.headline }}</pre>
     </div>
 
     <!-- Details -->
-    <div v-if="item.details" style="margin: 8px 0; color: #666;">
+    <p v-if="item.details" class="text-sm text-muted mb-3">
       {{ item.details }}
-    </div>
+    </p>
 
     <!-- Options -->
-    <div v-if="item.options?.length" style="margin: 8px 0;">
+    <div v-if="item.options?.length" class="space-y-2 mb-3">
       <div
         v-for="(option, optIdx) in item.options"
         :key="optIdx"
-        style="margin: 4px 0 4px 16px;"
+        class="pl-4"
       >
         <QuestionBlock
           :item="option"
@@ -129,7 +129,7 @@ if (props.pageImage) {
     </div>
 
     <!-- Children -->
-    <div v-if="item.children?.length" style="margin: 8px 0;">
+    <div v-if="item.children?.length" class="space-y-2 mb-3">
       <QuestionBlock
         v-for="(child, childIdx) in item.children"
         :key="childIdx"
@@ -140,43 +140,55 @@ if (props.pageImage) {
     </div>
 
     <!-- Figures -->
-    <div v-if="item.figures?.length" style="margin: 8px 0;">
-      <strong>插图（{{ item.figures.length }} 个）：</strong>
-      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+    <div v-if="item.figures?.length" class="mt-3">
+      <p class="text-sm font-medium text-muted mb-2">
+        <UIcon name="i-lucide-image" class="size-3.5 inline-block mr-1" />
+        插图（{{ item.figures.length }} 个）
+      </p>
+      <div class="flex flex-wrap gap-3">
         <div
           v-for="(fig, figIdx) in item.figures"
           :key="figIdx"
-          style="position: relative; display: inline-block;"
+          class="relative group"
         >
-          <img
-            :src="figureSrc(figIdx)"
-            :alt="`插图 ${figIdx + 1}`"
-            :style="{
-              maxWidth: '300px',
-              maxHeight: '200px',
-              border: enhancedFigures[`${path}-${figIdx}`] ? '2px solid #10b981' : '1px solid #ccc',
-              borderRadius: '2px',
-              cursor: enhancingFigures[`${path}-${figIdx}`] ? 'wait' : 'pointer',
-              opacity: enhancingFigures[`${path}-${figIdx}`] ? 0.5 : 1,
-            }"
-            :title="enhancedFigures[`${path}-${figIdx}`] ? '已增强（点击重新增强）' : '点击去水印+重绘增强'"
-            @click="handleEnhanceFigure(figIdx)"
+          <div
+            class="relative overflow-hidden rounded-lg border transition-all"
+            :class="[
+              enhancedFigures[`${path}-${figIdx}`]
+                ? 'border-success'
+                : 'border-default hover:border-accented',
+              enhancingFigures[`${path}-${figIdx}`] ? 'opacity-50' : '',
+            ]"
           >
-          <span
-            v-if="enhancingFigures[`${path}-${figIdx}`]"
-            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: #333; background: rgba(255,255,255,0.8); padding: 2px 6px; border-radius: 4px;"
-          >
-            增强中...
-          </span>
-          <span
-            v-if="enhancedFigures[`${path}-${figIdx}`]"
-            style="position: absolute; top: 2px; right: 2px; font-size: 10px; color: #fff; background: #10b981; padding: 1px 4px; border-radius: 2px;"
-          >
-            ✓ 已增强
-          </span>
+            <img
+              :src="figureSrc(figIdx)"
+              :alt="`插图 ${figIdx + 1}`"
+              class="max-w-75 max-h-50 object-contain cursor-pointer"
+              :title="enhancedFigures[`${path}-${figIdx}`] ? '已增强（点击重新增强）' : '点击去水印+重绘增强'"
+              @click="handleEnhanceFigure(figIdx)"
+            >
+            <!-- Loading overlay -->
+            <div
+              v-if="enhancingFigures[`${path}-${figIdx}`]"
+              class="absolute inset-0 flex items-center justify-center bg-inverted/40"
+            >
+              <span class="text-xs text-inverted font-medium px-2 py-1 bg-inverted/60 rounded">
+                增强中...
+              </span>
+            </div>
+            <!-- Enhanced badge -->
+            <UBadge
+              v-if="enhancedFigures[`${path}-${figIdx}`]"
+              color="success"
+              label="已增强"
+
+              class="absolute top-1 right-1"
+            />
+          </div>
+          <!-- Error message -->
           <p
             v-if="figureErrors[`${path}-${figIdx}`]"
-            style="color: red; font-size: 12px; margin: 2px 0 0;"
+            class="text-xs text-error mt-1"
           >
             {{ figureErrors[`${path}-${figIdx}`] }}
           </p>

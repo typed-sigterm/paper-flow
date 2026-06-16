@@ -1,5 +1,5 @@
 import type { ImageRun, Paragraph, TextRun } from 'docx';
-import type { DocumentContent, DocumentPart } from '#shared/utils/models';
+import type { DocumentContent, DocumentFigure, DocumentPart } from '#shared/utils/models';
 import katex from 'katex';
 import { createMarkdownExit } from 'markdown-exit';
 
@@ -303,12 +303,68 @@ async function textToParagraphs(
   return result;
 }
 
+// ====== Figure image fetching ======
+
+async function fetchFigureImage(
+  fig: DocumentFigure,
+  pageImageUrl?: string,
+): Promise<{ bytes: Uint8Array, w: number, h: number } | null> {
+  try {
+    let blob: Blob;
+
+    if (fig.redrawnBlob) {
+      // Use enhanced/redrawn version from blob store
+      const resp = await fetch(`/api/blobs/${fig.redrawnBlob}`);
+      if (!resp.ok)
+        return null;
+      blob = await resp.blob();
+    } else if (pageImageUrl && fig.originalRect.width > 0) {
+      // Crop from original page image
+      const resp = await fetch(pageImageUrl);
+      if (!resp.ok)
+        return null;
+      const bmp = await createImageBitmap(await resp.blob());
+      const { x, y, width, height } = fig.originalRect;
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bmp, x, y, width, height, 0, 0, width, height);
+      blob = await canvas.convertToBlob({ type: 'image/png' });
+    } else {
+      return null;
+    }
+
+    const ab = await blob.arrayBuffer();
+    let { width: w, height: h } = fig.originalRect;
+
+    // Scale down to fit within printable area if needed
+    const PAGE_CONTENT_WIDTH = 9360; // 12240 - 2*1440
+    const MAX_SCALE = 4; // EMU per pixel for small images
+    if (w > 0 && h > 0) {
+      const emuW = w * MAX_SCALE;
+      if (emuW > PAGE_CONTENT_WIDTH) {
+        const ratio = PAGE_CONTENT_WIDTH / emuW;
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      } else {
+        w *= MAX_SCALE;
+        h *= MAX_SCALE;
+      }
+    }
+
+    return { bytes: new Uint8Array(ab), w, h };
+  } catch {
+    return null;
+  }
+}
+
 // ====== Paragraph generation from DocumentPart ======
 
 async function partToParagraphs(
   part: DocumentPart,
   depth: number,
+  pageImageUrl?: string,
 ): Promise<Paragraph[]> {
+  const { ImageRun, Paragraph } = await import('docx');
   const result: Paragraph[] = [];
   const indent = depth > 0 ? { left: depth * 480 } : undefined;
 
@@ -317,9 +373,21 @@ async function partToParagraphs(
     result.push(...await textToParagraphs(part.headline, { indent }));
   }
 
+  // Figures
+  for (const fig of part.figures) {
+    const img = await fetchFigureImage(fig, pageImageUrl);
+    if (img) {
+      result.push(new Paragraph({
+        children: [new ImageRun({ data: img.bytes, transformation: { width: img.w, height: img.h }, type: 'png' })],
+        spacing: { line: LINE_SPACING },
+        indent,
+      }));
+    }
+  }
+
   // Children (sub-questions)
   for (const child of part.children) {
-    result.push(...await partToParagraphs(child, depth + 1));
+    result.push(...await partToParagraphs(child, depth + 1, pageImageUrl));
   }
 
   // Options
@@ -333,7 +401,7 @@ async function partToParagraphs(
 }
 
 // ====== Export to DOCX ======
-export async function exportDocx(content: DocumentContent) {
+export async function exportDocx(content: DocumentContent, pageImageUrl?: string) {
   const { AlignmentType, Document, Paragraph, Packer, TextRun } = await import('docx');
   if (!content.parts.length)
     return;
@@ -354,7 +422,7 @@ export async function exportDocx(content: DocumentContent) {
   }));
 
   for (const [i, part] of content.parts.entries()) {
-    children.push(...await partToParagraphs(part, 0));
+    children.push(...await partToParagraphs(part, 0, pageImageUrl));
     if (i < content.parts.length - 1) {
       children.push(new Paragraph({ spacing: { before: 160, after: 160 } }));
     }

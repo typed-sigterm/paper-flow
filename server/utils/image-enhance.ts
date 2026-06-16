@@ -22,15 +22,11 @@ const MAX_POLL_ATTEMPTS = 30; // 60s max
 const { redrawFigureModel } = useRuntimeConfig();
 
 async function submitImageEnhance(imageDataUrl: string, prompt: string) {
-  const res = await tokenhub.request<SubmitResponse>({
-    method: 'post',
-    path: '/api/image/submit',
-    body: {
-      model: redrawFigureModel,
-      prompt,
-      images: [imageDataUrl],
-      logo_add: 0,
-    },
+  const res = await tokenhubRequest<SubmitResponse>('/api/image/submit', {
+    model: redrawFigureModel,
+    prompt,
+    images: [imageDataUrl],
+    logo_add: 0,
   });
   if (!res.id)
     throw createError({ statusCode: 502, message: '提交任务失败' });
@@ -38,10 +34,9 @@ async function submitImageEnhance(imageDataUrl: string, prompt: string) {
 }
 
 function queryTask(taskId: string): Promise<QueryResponse> {
-  return tokenhub.request({
-    method: 'post',
-    path: '/api/image/query',
-    body: { model: redrawFigureModel, id: taskId },
+  return tokenhubRequest<QueryResponse>('/api/image/query', {
+    model: redrawFigureModel,
+    id: taskId,
   });
 }
 

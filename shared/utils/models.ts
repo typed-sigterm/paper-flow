@@ -15,6 +15,7 @@ export const DocumentFigure = z.object({
   pendingRedraw: z.boolean(),
   redrawnBlob: BlobId.nullable(),
 });
+export type DocumentFigure = z.infer<typeof DocumentFigure>;
 
 export const DocumentPart = z.object({
   headline: z.string(),

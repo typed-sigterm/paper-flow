@@ -70,6 +70,8 @@ onMounted(fetchDocuments);
           variant="ghost"
           icon="i-lucide-refresh-cw"
           label="刷新"
+          size="sm"
+          color="neutral"
           @click="fetchDocuments"
         />
       </div>

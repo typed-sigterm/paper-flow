@@ -1,4 +1,4 @@
-import type { Toast } from '@nuxt/ui';
+import type { Toast } from '@nuxt/ui/composables/useToast';
 
 export function showSuccessToast(title: string, options?: Partial<Omit<Toast, 'title'>>) {
   const toast = useToast();

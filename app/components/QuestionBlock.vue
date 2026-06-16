@@ -141,10 +141,6 @@ if (props.pageImage) {
 
     <!-- Figures -->
     <div v-if="item.figures?.length" class="mt-3">
-      <p class="text-sm font-medium text-muted mb-2">
-        <UIcon name="i-lucide-image" class="size-3.5 inline-block mr-1" />
-        插图（{{ item.figures.length }} 个）
-      </p>
       <div class="flex flex-wrap gap-3">
         <div
           v-for="(fig, figIdx) in item.figures"

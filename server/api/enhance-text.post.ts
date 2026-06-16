@@ -1,3 +1,4 @@
+import { generateText } from 'ai';
 import pMap from 'p-map';
 import * as z from 'zod';
 
@@ -11,11 +12,13 @@ const ENHANCE_PROMPT = `你是一个试卷 OCR 后处理助手。你将收到试
    - 上划线（\\overline{}）→ <u> 包裹被标记的文字
    - 上标（^{} 或 ^x）→ <sup> 包裹上标内容
    - 下标（_{} 或 _x）→ <sub> 包裹下标内容
-   - 一旦包含其他成分，则保持原样不变
+   - **一旦**包含其他成分，则保持原样不变
 3. **代码风格修正**：如果存在有效的 Python 代码片段，则应格式化使其符合 PEP 8。但不得修改逻辑、变量名等实质内容，即使运行效果完全一致也不行
 4. **换行符处理**：如果文本中存在被错误转义的换行符（\\n），应将其替换为真正的换行符。注意，有时确实需要显示 \\n 字符，这种情况下不要替换
 5. **识别错误修正**：如果文本中存在明显的 OCR 识别错误（如字符误识别、缩进错误、全角半角符号错误），请修正这些错误，但仅限于不改变原意的范围内
 6. **文本结构**：一行不能有多个选项，选项结束后应换行
+
+注意，你需要仔细区分数学元素和代码，不可混用。
 
 不得增加、删除或修改其他文本内容。直接返回处理后的文本，不要加序号或任何解释。
 
@@ -56,17 +59,20 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   // Process each text as a separate conversation to avoid response splitting
   const enhanced = await pMap(texts, async (t) => {
-    const res = await tokenhub.chat.completions.create({
-      model: config.fixTextModel,
+    const { text } = await generateText({
+      model: tokenhub.chatModel(config.fixTextModel),
+      system: ENHANCE_PROMPT,
       messages: [
-        { role: 'system', content: ENHANCE_PROMPT },
         { role: 'user', content: t },
       ],
       temperature: 0.2,
-      // @ts-expect-error upstream
-      thinking: { type: 'disabled' },
+      providerOptions: {
+        openai: {
+          thinking: { type: 'disabled' },
+        },
+      },
     });
-    return (res.choices?.[0]?.message?.content ?? '').trim() || t;
+    return text.trim() || t;
   }, { concurrency: CONCURRENCY });
 
   return { enhanced };

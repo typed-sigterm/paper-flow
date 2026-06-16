@@ -8,6 +8,7 @@ const documentId = route.params.id as string;
 interface DocumentItem {
   id: string
   title: string
+  originalFile: string
   status: DocumentStatus
   error: string | null
   content: DocumentContent
@@ -61,7 +62,8 @@ async function handleExportDocx() {
     return;
   try {
     const { exportDocx } = await import('~/utils/exporting');
-    await exportDocx(document.value.content);
+    const pageImageUrl = document.value.originalFile ? `/api/blobs/${document.value.originalFile}` : undefined;
+    await exportDocx(document.value.content, pageImageUrl);
     showSuccessToast('导出成功');
   } catch (e) {
     showErrorToast('导出失败', { error: e });
@@ -140,9 +142,6 @@ onUnmounted(stopPolling);
         <p class="text-lg font-medium text-highlighted mb-2">
           正在处理文档…
         </p>
-        <p class="text-sm text-muted">
-          识别 + 文本优化中，请稍候
-        </p>
         <UProgress class="mt-6 max-w-xs mx-auto" />
       </div>
     </UCard>
@@ -180,6 +179,7 @@ onUnmounted(stopPolling);
             :item="part"
             :path="`part-${partIdx}`"
             :document-id="documentId"
+            :page-image="document.originalFile ? `/api/blobs/${document.originalFile}` : undefined"
           />
         </div>
       </template>
